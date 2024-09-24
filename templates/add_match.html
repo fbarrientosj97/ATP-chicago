@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Record a Match</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Record a New Match</h1>
+    <a href="{{ url_for('index') }}">Back to Home</a>
+
+    <form action="{{ url_for('add_match') }}" method="POST">
+        <label for="player1">Player 1:</label>
+        <select name="player1" id="player1">
+            {% for player in players %}
+            <option value="{{ player.name }}">{{ player.name }}</option>
+            {% endfor %}
+        </select>
+    
+        <label for="player2">Player 2:</label>
+        <select name="player2" id="player2">
+            {% for player in players %}
+            <option value="{{ player.name }}">{{ player.name }}</option>
+            {% endfor %}
+        </select>
+    
+        <label for="winner">Winner:</label>
+        <select name="winner">
+            <option value="player1">Player 1</option>
+            <option value="player2">Player 2</option>
+        </select>
+    
+        <label for="sets">Sets:</label>
+        <input type="text" name="sets">
+    
+        <button type="submit">Submit Match</button>
+    
+        <!-- Display error message if it exists -->
+        {% if error %}
+        <p style="color: red;">{{ error }}</p>
+        {% endif %}
+    </form>
+    
+</body>
+</html>

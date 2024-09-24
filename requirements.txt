@@ -1,0 +1,3 @@
+Flask
+pandas
+openpyxl  # Required by pandas to handle Excel files
