@@ -9,7 +9,11 @@ app = Flask(__name__)
 EXCEL_FILE = 'ladder_data.xlsx'
 
 # Database setup
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///ladder.db')
+uri = os.environ.get('DATABASE_URL', 'sqlite:///ladder.db')  # or other relevant config var
+if uri and uri.startswith("postgres://"):
+    uri = uri.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
