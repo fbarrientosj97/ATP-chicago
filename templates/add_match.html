@@ -12,27 +12,27 @@
 
     <form action="{{ url_for('add_match') }}" method="POST">
         <label for="player1">Player 1:</label>
-        <select name="player1" id="player1">
+        <select name="player1" id="player1" required>
             {% for player in players %}
             <option value="{{ player.name }}">{{ player.name }}</option>
             {% endfor %}
         </select>
     
         <label for="player2">Player 2:</label>
-        <select name="player2" id="player2">
+        <select name="player2" id="player2" required>
             {% for player in players %}
             <option value="{{ player.name }}">{{ player.name }}</option>
             {% endfor %}
         </select>
     
         <label for="winner">Winner:</label>
-        <select name="winner">
+        <select name="winner" required>
             <option value="player1">Player 1</option>
             <option value="player2">Player 2</option>
         </select>
     
         <label for="sets">Sets:</label>
-        <input type="text" name="sets">
+        <input type="text" name="sets" required>
     
         <button type="submit">Submit Match</button>
     
