@@ -2,12 +2,23 @@ import os
 import pandas as pd
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for
-from io import BytesIO
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+import json
 
 app = Flask(__name__)
 
-# Removed EXCEL_FILE as a physical file path
-EXCEL_FILE = 'ladder_data.xlsx'
+# Define the Google Sheets ID and ranges for each sheet
+SHEET_ID = '1o-RzjCAGVwmZcVg1tSmlKBs2SbUNIBsyE2VFsBwVv0c'
+RANGE_NAME_RANKING = 'Ranking!A1:D'  # Adjust the range as necessary for ranking sheet
+RANGE_NAME_MATCHES = 'Matches!A1:E'  # Adjust the range as necessary for matches sheet
+
+# Set up the credentials and Google Sheets API
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+service_account_info = json.loads(os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON'))
+creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+service = build('sheets', 'v4', credentials=creds)
+sheet = service.spreadsheets()
 
 
 class Player:
@@ -31,6 +42,14 @@ class Match:
 
     def __str__(self):
         return f"{self.player1.name} vs {self.player2.name} - Winner: {self.result}, Sets: {self.sets}"
+
+    def to_dict(self):
+        return {
+            "player1": self.player1.name,
+            "player2": self.player2.name,
+            "result": self.result,
+            "sets": self.sets
+        }
 
 
 class Ladder:
@@ -76,49 +95,56 @@ class Ladder:
 ladder = Ladder()
 
 
-def save_to_excel():
-    """Saves the ranking and matches to an in-memory Excel file."""
-    ranking_data = [{'Name': p.name, 'Rank': p.rank, 'Age': p.age, 'Email': p.email} for p in ladder.players]
-    matches_data = [{
-        'Player 1': m.player1.name,
-        'Player 2': m.player2.name,
-        'Winner': m.result,
-        'Sets': str(m.sets),
-        'Time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    } for m in ladder.matches]
+def save_to_google_sheets():
+    """Saves the ranking and matches to Google Sheets."""
+    
+    # Convert players to a list of lists (each player to a row of data)
+    ranking_data = [['Name', 'Rank', 'Age', 'Email']] + [
+        [p.name, p.rank, p.age, p.email] for p in ladder.players
+    ]
+    
+    # Convert matches to a list of lists (each match to a row of data)
+    matches_data = [['Player 1', 'Player 2', 'Winner', 'Sets', 'Time']] + [
+        [m.player1.name, m.player2.name, m.result.name if isinstance(m.result, Player) else m.result, str(m.sets), datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
+        for m in ladder.matches
+    ]
 
-    # Create an in-memory Excel writer
-    with BytesIO() as output:
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            pd.DataFrame(ranking_data).to_excel(writer, sheet_name='Ranking', index=False)
-            pd.DataFrame(matches_data).to_excel(writer, sheet_name='Matches', index=False)
-        output.seek(0)
-        return output.getvalue()
+    # Write ranking data to the Ranking sheet
+    sheet.values().update(spreadsheetId=SHEET_ID, range=RANGE_NAME_RANKING,
+                          valueInputOption="RAW", body={"values": ranking_data}).execute()
+    
+    # Write matches data to the Matches sheet
+    sheet.values().update(spreadsheetId=SHEET_ID, range=RANGE_NAME_MATCHES,
+                          valueInputOption="RAW", body={"values": matches_data}).execute()
 
 
-def load_from_excel(excel_data):
-    """Loads the ranking and matches from an in-memory Excel file."""
-    data = pd.read_excel(BytesIO(excel_data), sheet_name=None)
+def load_from_google_sheets():
+    """Loads the ranking and matches from Google Sheets."""
+    
+    # Load ranking data from the Ranking sheet
+    ranking_result = sheet.values().get(spreadsheetId=SHEET_ID, range=RANGE_NAME_RANKING).execute()
+    ranking_values = ranking_result.get('values', [])
 
-    ranking_df = data['Ranking']
-    matches_df = data['Matches']
+    # Load matches data from the Matches sheet
+    matches_result = sheet.values().get(spreadsheetId=SHEET_ID, range=RANGE_NAME_MATCHES).execute()
+    matches_values = matches_result.get('values', [])
 
     # Restore players
     ladder.players = []
-    for _, row in ranking_df.iterrows():
-        player = Player(row['Name'], row['Rank'], row['Age'], row['Email'])
+    for row in ranking_values[1:]:
+        player = Player(row[0], int(row[1]), int(row[2]), row[3])
         ladder.add_player(player)
 
     # Restore matches
     ladder.matches = []
-    for _, row in matches_df.iterrows():
-        player1 = next(p for p in ladder.players if p.name == row['Player 1'])
-        player2 = next(p for p in ladder.players if p.name == row['Player 2'])
-        winner = row['Winner']
-        sets = eval(row['Sets'])  # Convert the string of sets to a list of tuples
+    for row in matches_values[1:]:
+        player1 = next(p for p in ladder.players if p.name == row[0])
+        player2 = next(p for p in ladder.players if p.name == row[1])
+        winner = row[2]
+        sets = eval(row[3])  # Convert the string of sets to a list of tuples
         match = Match(player1, player2, winner, sets)
         ladder.matches.append(match)
-
+        
 
 @app.route('/')
 def index():
@@ -140,8 +166,11 @@ def matches():
 
 @app.route('/add_match', methods=['GET', 'POST'])
 def add_match():
-    error_message = None  # Variable to store error message
+    error_message = None  # Variable para el mensaje de error
     
+    # Verificar cambios más recientes en Google Sheets antes de registrar el partido
+    load_from_google_sheets()
+
     if request.method == 'POST':
         player1_name = request.form['player1']
         player2_name = request.form['player2']
@@ -151,25 +180,24 @@ def add_match():
         player1 = ladder.get_player(player1_name)
         player2 = ladder.get_player(player2_name)
 
-        # Validate the rank difference (should be <= 2)
+        # Validar la diferencia de rango (debería ser <= 2)
         if abs(player1.rank - player2.rank) > ladder.min_rank_difference:
-            error_message = f"{player1.name} and {player2.name} are more than {ladder.min_rank_difference} ranks apart."
+            error_message = f"{player1.name} y {player2.name} están separados por más de {ladder.min_rank_difference} rangos."
             return render_template('add_match.html', players=ladder.players, error=error_message)
 
-        # If no error, proceed to record the match
+        # Si no hay error, proceder a registrar el partido
         try:
             if winner == 'player1':
                 ladder.record_match(player1, player2, player1, sets)
             else:
                 ladder.record_match(player1, player2, player2, sets)
 
-            excel_data = save_to_excel()  # Save changes to Excel
-            # You may want to store this data in a database or some persistent storage instead of an in-memory buffer
+            save_to_google_sheets()  # Guardar cambios en Google Sheets
             return redirect(url_for('index'))
         except ValueError as e:
             error_message = str(e)
     
-    # If GET request or there is an error, render the form with players and error message
+    # Si es una solicitud GET o hay un error, renderizar el formulario con los jugadores y el mensaje de error
     return render_template('add_match.html', players=ladder.players, error=error_message)
 
 
@@ -195,6 +223,9 @@ def add_player_form():
 
 @app.route('/add_player', methods=['POST'])
 def add_player():
+    # Verificar los cambios más recientes en Google Sheets antes de hacer cualquier operación
+    load_from_google_sheets()
+
     name = request.form['name']
     age = int(request.form['age'])
     email = request.form['email']
@@ -204,14 +235,12 @@ def add_player():
     new_player = Player(name, new_rank, age, email)
     ladder.add_player(new_player)
 
-    excel_data = save_to_excel()  # Save to Excel after adding the player
+    save_to_google_sheets()  # Guardar cambios en Google Sheets después de agregar al jugador
 
     return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
-    # Initially, you need to load from an existing Excel file or create a new one if it doesn't exist
-    if os.path.exists(EXCEL_FILE):
-        with open(EXCEL_FILE, 'rb') as f:
-            load_from_excel(f.read())
+    # Inicialmente, cargar los datos desde Google Sheets
+    load_from_google_sheets()
     app.run(debug=True)
