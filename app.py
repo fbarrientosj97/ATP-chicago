@@ -124,7 +124,9 @@ def load_from_google_sheets():
     # Load ranking data from the Ranking sheet
     ranking_result = sheet.values().get(spreadsheetId=SHEET_ID, range=RANGE_NAME_RANKING).execute()
     ranking_values = ranking_result.get('values', [])
-
+    print("--------")
+    print(ranking_values)
+    print("--------")
     # Load matches data from the Matches sheet
     matches_result = sheet.values().get(spreadsheetId=SHEET_ID, range=RANGE_NAME_MATCHES).execute()
     matches_values = matches_result.get('values', [])
@@ -146,20 +148,24 @@ def load_from_google_sheets():
         ladder.matches.append(match)
         
 
+
 @app.route('/')
 def index():
+    load_from_google_sheets()
     players = ladder.get_ranking()
     return render_template('index.html', players=players)
 
 
 @app.route('/ranking')
 def ranking():
+    load_from_google_sheets()
     players = ladder.get_ranking()
     return render_template('ranking.html', players=players)
 
 
 @app.route('/matches')
 def matches():
+    load_from_google_sheets()
     matches = ladder.get_matches()
     return render_template('matches.html', matches=matches)
 
