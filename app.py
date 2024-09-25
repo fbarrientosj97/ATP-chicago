@@ -2,11 +2,12 @@ import os
 import pandas as pd
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for
+from io import BytesIO
 
 app = Flask(__name__)
 
-APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-EXCEL_FILE = os.path.join(APP_ROOT, 'ladder_data.xlsx')
+# Removed EXCEL_FILE as a physical file path
+EXCEL_FILE = 'ladder_data.xlsx'
 
 
 class Player:
@@ -76,7 +77,7 @@ ladder = Ladder()
 
 
 def save_to_excel():
-    """Saves the ranking and matches to an Excel file."""
+    """Saves the ranking and matches to an in-memory Excel file."""
     ranking_data = [{'Name': p.name, 'Rank': p.rank, 'Age': p.age, 'Email': p.email} for p in ladder.players]
     matches_data = [{
         'Player 1': m.player1.name,
@@ -86,34 +87,37 @@ def save_to_excel():
         'Time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     } for m in ladder.matches]
 
-    with pd.ExcelWriter(EXCEL_FILE, mode='w') as writer:
-        pd.DataFrame(ranking_data).to_excel(writer, sheet_name='Ranking', index=False)
-        pd.DataFrame(matches_data).to_excel(writer, sheet_name='Matches', index=False)
+    # Create an in-memory Excel writer
+    with BytesIO() as output:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            pd.DataFrame(ranking_data).to_excel(writer, sheet_name='Ranking', index=False)
+            pd.DataFrame(matches_data).to_excel(writer, sheet_name='Matches', index=False)
+        output.seek(0)
+        return output.getvalue()
 
 
-def load_from_excel():
-    """Loads the ranking and matches from the Excel file if it exists."""
-    if os.path.exists(EXCEL_FILE):
-        data = pd.read_excel(EXCEL_FILE, sheet_name=None)
+def load_from_excel(excel_data):
+    """Loads the ranking and matches from an in-memory Excel file."""
+    data = pd.read_excel(BytesIO(excel_data), sheet_name=None)
 
-        ranking_df = data['Ranking']
-        matches_df = data['Matches']
+    ranking_df = data['Ranking']
+    matches_df = data['Matches']
 
-        # Restore players
-        ladder.players = []
-        for _, row in ranking_df.iterrows():
-            player = Player(row['Name'], row['Rank'], row['Age'], row['Email'])
-            ladder.add_player(player)
+    # Restore players
+    ladder.players = []
+    for _, row in ranking_df.iterrows():
+        player = Player(row['Name'], row['Rank'], row['Age'], row['Email'])
+        ladder.add_player(player)
 
-        # Restore matches
-        ladder.matches = []
-        for _, row in matches_df.iterrows():
-            player1 = next(p for p in ladder.players if p.name == row['Player 1'])
-            player2 = next(p for p in ladder.players if p.name == row['Player 2'])
-            winner = row['Winner']
-            sets = eval(row['Sets'])  # Convert the string of sets to a list of tuples
-            match = Match(player1, player2, winner, sets)
-            ladder.matches.append(match)
+    # Restore matches
+    ladder.matches = []
+    for _, row in matches_df.iterrows():
+        player1 = next(p for p in ladder.players if p.name == row['Player 1'])
+        player2 = next(p for p in ladder.players if p.name == row['Player 2'])
+        winner = row['Winner']
+        sets = eval(row['Sets'])  # Convert the string of sets to a list of tuples
+        match = Match(player1, player2, winner, sets)
+        ladder.matches.append(match)
 
 
 @app.route('/')
@@ -159,7 +163,8 @@ def add_match():
             else:
                 ladder.record_match(player1, player2, player2, sets)
 
-            save_to_excel()  # Save changes to Excel
+            excel_data = save_to_excel()  # Save changes to Excel
+            # You may want to store this data in a database or some persistent storage instead of an in-memory buffer
             return redirect(url_for('index'))
         except ValueError as e:
             error_message = str(e)
@@ -198,11 +203,15 @@ def add_player():
     new_rank = len(ladder.players) + 1
     new_player = Player(name, new_rank, age, email)
     ladder.add_player(new_player)
-    save_to_excel()  # Save to Excel after adding the player
+
+    excel_data = save_to_excel()  # Save to Excel after adding the player
 
     return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
-    load_from_excel()  # Load data from Excel when the app starts
+    # Initially, you need to load from an existing Excel file or create a new one if it doesn't exist
+    if os.path.exists(EXCEL_FILE):
+        with open(EXCEL_FILE, 'rb') as f:
+            load_from_excel(f.read())
     app.run(debug=True)
