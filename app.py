@@ -53,7 +53,7 @@ class Match:
 
 
 class Ladder:
-    def __init__(self, min_rank_difference=2):
+    def __init__(self, min_rank_difference=4):
         self.players = []
         self.matches = []
         self.min_rank_difference = min_rank_difference

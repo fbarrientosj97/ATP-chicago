@@ -1,28 +1,95 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Arial', sans-serif;
     margin: 20px;
+    background-color: #f0f8ff; /* Light sky blue background */
+    color: #333;
+}
+
+header {
+    background-color: #4CAF50; /* Green background representing a tennis court */
+    color: white;
+    padding: 15px;
+    text-align: center;
+    border-radius: 8px;
+}
+
+h1 {
+    font-size: 2.5em;
+    margin: 0;
+}
+
+h2 {
+    font-size: 1.8em;
+    margin: 10px 0;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 form {
     margin-bottom: 20px;
+    padding: 15px;
+    background-color: #ffffff; /* White background for the form */
+    border: 2px solid #4CAF50; /* Border color matching header */
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 input {
     margin: 5px;
+    padding: 10px;
+    border: 2px solid #4CAF50;
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+input:focus {
+    outline: none;
+    border-color: #ffcc00; /* Highlight border on focus */
 }
 
 button {
     margin-top: 10px;
+    padding: 10px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s;
 }
 
-h1, h2 {
-    color: #333;
+button:hover {
+    background-color: #45a049; /* Darker green on hover */
 }
 
 ul {
     list-style-type: none;
+    padding: 0;
 }
 
 li {
     margin: 5px 0;
+    padding: 10px;
+    background-color: #e8f5e9; /* Light green background for list items */
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+}
+
+li::before {
+    content: "🎾"; /* Tennis emoji before each list item */
+    margin-right: 10px;
+    font-size: 1.5em; /* Size of the emoji */
+}
+
+footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 0.9em;
+    color: #777;
+}
+
+footer::after {
+    content: "🏆"; /* Trophy emoji after footer text */
+    margin-left: 5px;
 }

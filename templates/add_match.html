@@ -5,10 +5,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Record a Match</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff; /* Light tennis court background */
+            color: #333;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #4caf50; /* Tennis green */
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #333;
+            margin-top: 20px;
+        }
+
+        a {
+            color: #4caf50; /* Tennis green for links */
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        form {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 2px solid #4caf50; /* Tennis green border */
+            border-radius: 10px;
+            background-color: #fff; /* White background for form */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+
+        select, input[type="text"] {
+            width: calc(100% - 20px); /* Full width minus padding */
+            padding: 10px;
+            margin: 5px 0 20px;
+            border: 2px solid #4caf50; /* Tennis green */
+            border-radius: 5px;
+        }
+
+        button {
+            background-color: #4caf50; /* Tennis green */
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049; /* Darker green on hover */
+        }
+
+        p.error {
+            color: red; /* Error message color */
+        }
+
+        .emoji {
+            font-size: 24px; /* Emoji size */
+        }
+    </style>
 </head>
 <body>
-    <h1>Record a New Match</h1>
-    <a href="{{ url_for('index') }}">Back to Home</a>
+    <header>
+        <h1>🏆 Record a New Match 🎾</h1>
+        <a href="{{ url_for('index') }}">🔙 Back to Home</a>
+    </header>
 
     <form action="{{ url_for('add_match') }}" method="POST">
         <label for="player1">Player 1:</label>
@@ -38,7 +118,7 @@
     
         <!-- Display error message if it exists -->
         {% if error %}
-        <p style="color: red;">{{ error }}</p>
+        <p class="error">{{ error }}</p>
         {% endif %}
     </form>
     

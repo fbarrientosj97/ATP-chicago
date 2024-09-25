@@ -5,19 +5,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tennis Ladder Ranking</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff; /* Light tennis court background */
+            color: #333;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #4caf50; /* Tennis green */
+            font-size: 2.5em;
+        }
+
+        a {
+            color: #4caf50; /* Tennis green for links */
+            text-decoration: none;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        h2 {
+            color: #4caf50; /* Tennis green */
+            font-size: 2em;
+            margin-top: 20px;
+        }
+
+        ul {
+            list-style-type: none; /* Remove bullet points */
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        li {
+            margin: 10px 0;
+            background-color: #e7f7e2; /* Light green background for player list */
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .rules {
+            background-color: #fff; /* White background for rules */
+            border: 2px solid #4caf50; /* Tennis green border */
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .emoji {
+            font-size: 24px; /* Emoji size */
+        }
+    </style>
 </head>
 <body>
-    <h1>Tennis Ladder Ranking</h1>
-    <a href="{{ url_for('ranking') }}">View Full Ranking</a> | 
-    <a href="{{ url_for('matches') }}">Match History</a> | 
-    <a href="{{ url_for('add_player_form') }}">Add New Player</a> | 
-    <a href="{{ url_for('add_match') }}">Record a Match</a>
-    
+    <header>
+        <h1>🎾 Tennis Ladder Ranking 📊</h1>
+        <nav>
+            <a href="{{ url_for('ranking') }}">View Full Ranking</a> | 
+            <a href="{{ url_for('matches') }}">Match History</a> | 
+            <a href="{{ url_for('add_player_form') }}">Add New Player</a> | 
+            <a href="{{ url_for('add_match') }}">Record a Match</a>
+        </nav>
+    </header>
+
     <h2>Current Rankings</h2>
     <ul>
         {% for player in players %}
-            <li>{{ player.rank }}. {{ player.name }} (Age: {{ player.age }}, Email: {{ player.email }})</li>
+            <li>{{ player.rank }}. {{ player.name }} (Phone: {{ player.age }}, Email: {{ player.email }})</li>
         {% endfor %}
     </ul>
+    
+    <div class="rules">
+        <h2>📜 Rules</h2>
+        <ul>
+            <li>Players may only challenge (challenge to a match) a player who is at least 4 positions above him/her.</li>
+            <li>New players entering the ladder will always start in the last position.</li>
+            <li>In case a player is challenged, he/she will have 5 days to propose a date (within the next 7 days) - otherwise, the challenger will win the match.</li>
+        </ul>
+    </div>
 </body>
 </html>
