@@ -1,50 +1,34 @@
-from flask import Flask, render_template, request, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
 import os
+import pandas as pd
 from datetime import datetime
-from flask_migrate import Migrate
+from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
 EXCEL_FILE = 'ladder_data.xlsx'
 
-# Database setup
-uri = os.environ.get('DATABASE_URL', 'sqlite:///ladder.db')  # or other relevant config var
-if uri and uri.startswith("postgres://"):
-    uri = uri.replace("postgres://", "postgresql://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = uri
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
-
-migrate = Migrate(app, db)
-
-class Player(db.Model):
-    __tablename__ = 'player'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    age = db.Column(db.Integer, nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    rank = db.Column(db.Integer, nullable=False)
-
-    def __init__(self, name, rank, age, email):
+class Player:
+    def __init__(self, name, initial_rank, age, email):
         self.name = name
-        self.rank = rank
+        self.rank = initial_rank
         self.age = age
         self.email = email
+        self.matches = []
+
+    def __str__(self):
+        return f"{self.name} (Rank: {self.rank})"
 
 
-class Match(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    player1_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
-    player2_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
-    winner = db.Column(db.String(100), nullable=False)
-    sets = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    player1 = db.relationship('Player', foreign_keys=[player1_id])
-    player2 = db.relationship('Player', foreign_keys=[player2_id])
+class Match:
+    def __init__(self, player1, player2, result, sets):
+        self.player1 = player1
+        self.player2 = player2
+        self.result = result
+        self.sets = sets
+
+    def __str__(self):
+        return f"{self.player1.name} vs {self.player2.name} - Winner: {self.result}, Sets: {self.sets}"
 
 
 class Ladder:
@@ -89,66 +73,99 @@ class Ladder:
 # Ladder system instance
 ladder = Ladder()
 
+
+def save_to_excel():
+    """Saves the ranking and matches to an Excel file."""
+    ranking_data = [{'Name': p.name, 'Rank': p.rank, 'Age': p.age, 'Email': p.email} for p in ladder.players]
+    matches_data = [{
+        'Player 1': m.player1.name,
+        'Player 2': m.player2.name,
+        'Winner': m.result,
+        'Sets': str(m.sets),
+        'Time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    } for m in ladder.matches]
+
+    with pd.ExcelWriter(EXCEL_FILE, mode='w') as writer:
+        pd.DataFrame(ranking_data).to_excel(writer, sheet_name='Ranking', index=False)
+        pd.DataFrame(matches_data).to_excel(writer, sheet_name='Matches', index=False)
+
+
+def load_from_excel():
+    """Loads the ranking and matches from the Excel file if it exists."""
+    if os.path.exists(EXCEL_FILE):
+        data = pd.read_excel(EXCEL_FILE, sheet_name=None)
+
+        ranking_df = data['Ranking']
+        matches_df = data['Matches']
+
+        # Restore players
+        ladder.players = []
+        for _, row in ranking_df.iterrows():
+            player = Player(row['Name'], row['Rank'], row['Age'], row['Email'])
+            ladder.add_player(player)
+
+        # Restore matches
+        ladder.matches = []
+        for _, row in matches_df.iterrows():
+            player1 = next(p for p in ladder.players if p.name == row['Player 1'])
+            player2 = next(p for p in ladder.players if p.name == row['Player 2'])
+            winner = row['Winner']
+            sets = eval(row['Sets'])  # Convert the string of sets to a list of tuples
+            match = Match(player1, player2, winner, sets)
+            ladder.matches.append(match)
+
+
 @app.route('/')
 def index():
-    # Fetch players ordered by their rank directly from the database
-    players = Player.query.order_by(Player.rank).all()
+    players = ladder.get_ranking()
     return render_template('index.html', players=players)
 
 
 @app.route('/ranking')
 def ranking():
-    players = Player.query.order_by(Player.rank).all()
-    print("Fetching ranking page with players:", players)  # Debugging line
+    players = ladder.get_ranking()
     return render_template('ranking.html', players=players)
 
 
 @app.route('/matches')
 def matches():
-    matches = Match.query.all()
+    matches = ladder.get_matches()
     return render_template('matches.html', matches=matches)
 
 
 @app.route('/add_match', methods=['GET', 'POST'])
 def add_match():
+    error_message = None  # Variable to store error message
+    
     if request.method == 'POST':
         player1_name = request.form['player1']
         player2_name = request.form['player2']
-        winner_name = request.form['winner']
+        winner = request.form['winner']
         sets = request.form['sets']
 
-        player1 = Player.query.filter_by(name=player1_name).first()
-        player2 = Player.query.filter_by(name=player2_name).first()
+        player1 = ladder.get_player(player1_name)
+        player2 = ladder.get_player(player2_name)
 
-        if not player1 or not player2:
-            return render_template('add_match.html', players=Player.query.all(), error="One or both players not found.")
+        # Validate the rank difference (should be <= 2)
+        if abs(player1.rank - player2.rank) > ladder.min_rank_difference:
+            error_message = f"{player1.name} and {player2.name} are more than {ladder.min_rank_difference} ranks apart."
+            return render_template('add_match.html', players=ladder.players, error=error_message)
 
-        # Record the match in the database
-        new_match = Match(player1_id=player1.id, player2_id=player2.id, winner=winner_name, sets=sets)
-        db.session.add(new_match)
+        # If no error, proceed to record the match
+        try:
+            if winner == 'player1':
+                ladder.record_match(player1, player2, player1, sets)
+            else:
+                ladder.record_match(player1, player2, player2, sets)
 
-        # Update player rankings
-        if winner_name == 'player1':
-            winner = player1
-            loser = player2
-        else:
-            winner = player2
-            loser = player1
+            save_to_excel()  # Save changes to Excel
+            return redirect(url_for('index'))
+        except ValueError as e:
+            error_message = str(e)
+    
+    # If GET request or there is an error, render the form with players and error message
+    return render_template('add_match.html', players=ladder.players, error=error_message)
 
-        # Adjust rankings based on the winner
-        if winner.rank > loser.rank:  # Ensure the winner's rank is always higher (lower number)
-            winner.rank, loser.rank = loser.rank, winner.rank
-        else:
-            winner.rank, loser.rank = winner.rank + 1, loser.rank - 1  # Adjust ranks accordingly
-
-        # Save changes to the players
-        db.session.commit()
-
-        return redirect(url_for('index'))
-
-    # If it's a GET request, show the form
-    players = Player.query.all()
-    return render_template('add_match.html', players=players)
 
 @app.route('/filter_players', methods=['POST'])
 def filter_players():
@@ -165,25 +182,26 @@ def filter_players():
     return {"players": eligible_players}
 
 
-@app.route('/add_player', methods=['GET', 'POST'])
-def add_player():
-    if request.method == 'POST':
-        name = request.form['name']
-        age = int(request.form['age'])
-        email = request.form['email']
-
-        # The new player gets the last rank position
-        last_rank = Player.query.order_by(Player.rank.desc()).first()
-        new_rank = last_rank.rank + 1 if last_rank else 1  # If no players exist, start at rank 1
-        new_player = Player(name=name, rank=new_rank, age=age, email=email)
-
-        db.session.add(new_player)
-        db.session.commit()
-
-        return redirect(url_for('index'))
-
+@app.route('/add_player')
+def add_player_form():
     return render_template('add_player.html')
 
 
+@app.route('/add_player', methods=['POST'])
+def add_player():
+    name = request.form['name']
+    age = int(request.form['age'])
+    email = request.form['email']
+
+    # The new player gets the last rank position
+    new_rank = len(ladder.players) + 1
+    new_player = Player(name, new_rank, age, email)
+    ladder.add_player(new_player)
+    save_to_excel()  # Save to Excel after adding the player
+
+    return redirect(url_for('index'))
+
+
 if __name__ == '__main__':
+    load_from_excel()  # Load data from Excel when the app starts
     app.run(debug=True)
