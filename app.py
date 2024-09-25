@@ -5,7 +5,8 @@ from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
-EXCEL_FILE = 'ladder_data.xlsx'
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+EXCEL_FILE = os.path.join(APP_ROOT, 'ladder_data.xlsx')
 
 
 class Player:
