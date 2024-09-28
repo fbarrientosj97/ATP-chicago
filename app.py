@@ -66,12 +66,12 @@ class Ladder:
         self.matches.append(match)
 
         # Update rankings
-        if player1.rank < player2.rank:
-            winner, loser = player1, player2
-        else:
-            winner, loser = player2, player1
+        print(player1.rank)
+        print(player2.rank)
+        print(winner)
 
-        if winner == player1:
+        if (player1.rank > player2.rank and winner == player1) or (player1.rank < player2.rank and winner == player2):
+            print('Entré')
             self._swap_ranks(player1, player2)
 
     def _swap_ranks(self, winner, loser):
@@ -143,7 +143,7 @@ def load_from_google_sheets():
         player1 = next(p for p in ladder.players if p.name == row[0])
         player2 = next(p for p in ladder.players if p.name == row[1])
         winner = row[2]
-        sets = eval(row[3])  # Convert the string of sets to a list of tuples
+        sets = row[3]  # Convert the string of sets to a list of tuples
         match = Match(player1, player2, winner, sets)
         ladder.matches.append(match)
         

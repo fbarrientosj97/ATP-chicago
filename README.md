@@ -28,3 +28,8 @@ The application will run on `http://localhost:5000/`.
 - openpyxl# tennis-ladder-chicago
 # tennis-ladder-chicago
 # tennis-ladder-chicago
+
+## Extras 
+
+- Hay que correr el siguiente código para que funcione de no subir variables de entorno:
+- export GOOGLE_APPLICATION_CREDENTIALS_JSON=$(cat credentials.json | jq -c)     
