@@ -11,7 +11,7 @@ app = Flask(__name__)
 # Define the Google Sheets ID and ranges for each sheet
 SHEET_ID = '1o-RzjCAGVwmZcVg1tSmlKBs2SbUNIBsyE2VFsBwVv0c'
 RANGE_NAME_RANKING = 'Ranking!A1:D'  # Adjust the range as necessary for ranking sheet
-RANGE_NAME_MATCHES = 'Matches!A1:E'  # Adjust the range as necessary for matches sheet
+RANGE_NAME_MATCHES = 'Matches!A1:F'  # Adjust the range as necessary for matches sheet
 
 # Set up the credentials and Google Sheets API
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
@@ -34,11 +34,12 @@ class Player:
 
 
 class Match:
-    def __init__(self, player1, player2, result, sets):
+    def __init__(self, player1, player2, result, sets, comment="None"):
         self.player1 = player1
         self.player2 = player2
         self.result = result
         self.sets = sets
+        self.comment = comment  # Add comment attribute
 
     def __str__(self):
         return f"{self.player1.name} vs {self.player2.name} - Winner: {self.result}, Sets: {self.sets}"
@@ -48,7 +49,8 @@ class Match:
             "player1": self.player1.name,
             "player2": self.player2.name,
             "result": self.result,
-            "sets": self.sets
+            "sets": self.sets,
+            "comment": self.comment  # Include comment in dict
         }
 
 
@@ -61,8 +63,10 @@ class Ladder:
     def add_player(self, player):
         self.players.append(player)
 
-    def record_match(self, player1, player2, winner, sets):
-        match = Match(player1, player2, winner, sets)
+    def record_match(self, player1, player2, winner, sets, comment):
+        if not comment:
+            comment = 'None'
+        match = Match(player1, player2, winner, sets, comment)
         self.matches.append(match)
 
         # Update rankings
@@ -104,8 +108,9 @@ def save_to_google_sheets():
     ]
     
     # Convert matches to a list of lists (each match to a row of data)
-    matches_data = [['Player 1', 'Player 2', 'Winner', 'Sets', 'Time']] + [
-        [m.player1.name, m.player2.name, m.result.name if isinstance(m.result, Player) else m.result, str(m.sets), datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
+    matches_data = [['Player 1', 'Player 2', 'Winner', 'Sets', 'Time', 'Comment']] + [
+        [m.player1.name, m.player2.name, m.result.name if isinstance(m.result, Player) else m.result,
+         str(m.sets), datetime.now().strftime('%Y-%m-%d %H:%M:%S'), m.comment]
         for m in ladder.matches
     ]
 
@@ -144,7 +149,8 @@ def load_from_google_sheets():
         player2 = next(p for p in ladder.players if p.name == row[1])
         winner = row[2]
         sets = row[3]  # Convert the string of sets to a list of tuples
-        match = Match(player1, player2, winner, sets)
+        comment = row[5]  # Get comment from the row
+        match = Match(player1, player2, winner, sets, comment)
         ladder.matches.append(match)
         
 
@@ -182,6 +188,7 @@ def add_match():
         player2_name = request.form['player2']
         winner = request.form['winner']
         sets = request.form['sets']
+        comment = request.form['comment']  # Get the comment from the form
 
         player1 = ladder.get_player(player1_name)
         player2 = ladder.get_player(player2_name)
@@ -194,9 +201,9 @@ def add_match():
         # Si no hay error, proceder a registrar el partido
         try:
             if winner == 'player1':
-                ladder.record_match(player1, player2, player1, sets)
+                ladder.record_match(player1, player2, player1, sets, comment)
             else:
-                ladder.record_match(player1, player2, player2, sets)
+                ladder.record_match(player1, player2, player2, sets, comment)
 
             save_to_google_sheets()  # Guardar cambios en Google Sheets
             return redirect(url_for('index'))

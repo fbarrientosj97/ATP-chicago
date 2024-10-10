@@ -55,6 +55,14 @@
             font-size: 1.1em; /* Slightly larger font for matches */
         }
 
+        .comment {
+            font-size: 0.9em; /* Slightly smaller font for comments */
+            color: #555; /* Darker grey for comments */
+            margin-top: 5px; /* Spacing above comments */
+            padding-top: 5px; /* Additional padding to separate from match details */
+            border-top: 1px solid #ccc; /* Separator line for clarity */
+        }
+
         .back-link {
             font-size: 1.2em;
             margin-bottom: 20px;
@@ -71,7 +79,12 @@
     <h2>Matches</h2>
     <ul>
         {% for match in matches %}
-            <li>{{ match.player1.name }} vs {{ match.player2.name }} - Winner: <strong>{{ match.result }}</strong>, Sets: {{ match.sets }}</li>
+            <li>
+                {{ match.player1.name }} vs {{ match.player2.name }} - Winner: <strong>{{ match.result }}</strong>, Sets: {{ match.sets }}
+                {% if match.comment %}
+                    <div class="comment">Comment: {{ match.comment }}</div>
+                {% endif %}
+            </li>
         {% endfor %}
     </ul>
 </body>
