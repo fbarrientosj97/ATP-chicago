@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match History</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         body {
             font-family: 'Arial', sans-serif;
             margin: 20px;
-            background-color: #f0f8ff; /* Light tennis court background */
+            background-color: #f0f8ff; /* Light background for tennis feel */
             color: #333;
         }
 
@@ -24,7 +23,7 @@
         }
 
         a {
-            color: #4caf50; /* Tennis green for links */
+            color: #4caf50; /* Tennis green */
             text-decoration: none;
             font-weight: bold;
             margin: 0 10px;
@@ -40,33 +39,66 @@
             margin-top: 20px;
         }
 
-        ul {
-            list-style-type: none; /* Remove bullet points */
-            padding: 0;
-            margin: 10px 0;
+        .match-container {
+            margin: 20px 0;
         }
 
-        li {
-            margin: 10px 0;
-            background-color: #e7f7e2; /* Light green background for match list */
-            padding: 10px;
+        .match {
+            background-color: #e7f7e2; /* Light green background for matches */
+            border: 1px solid #c3e6cb; /* Light green border */
             border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            font-size: 1.1em; /* Slightly larger font for matches */
+            transition: transform 0.2s;
+        }
+
+        .match:hover {
+            transform: scale(1.02); /* Slight scale on hover */
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .match-players {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .match-score {
+            font-weight: bold;
+            color: #ff4500; /* Orange for scores */
         }
 
         .comment {
-            font-size: 0.9em; /* Slightly smaller font for comments */
-            color: #555; /* Darker grey for comments */
-            margin-top: 5px; /* Spacing above comments */
-            padding-top: 5px; /* Additional padding to separate from match details */
-            border-top: 1px solid #ccc; /* Separator line for clarity */
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid #ccc;
+        }
+
+        .month-header {
+            font-size: 1.5em;
+            color: #4caf50; /* Tennis green */
+            margin: 20px 0 10px;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 2px solid #4caf50; /* Bottom border for month header */
+            padding-bottom: 5px;
         }
 
         .back-link {
             font-size: 1.2em;
             margin-bottom: 20px;
-            display: block; /* Make back link more prominent */
+            display: block;
+            text-align: center;
         }
     </style>
 </head>
@@ -77,15 +109,25 @@
     </header>
 
     <h2>Matches</h2>
-    <ul>
-        {% for match in matches %}
-            <li>
-                {{ match.player1.name }} vs {{ match.player2.name }} - Winner: <strong>{{ match.result }}</strong>, Sets: {{ match.sets }}
-                {% if match.comment %}
-                    <div class="comment">Comment: {{ match.comment }}</div>
-                {% endif %}
-            </li>
+    <div class="match-container">
+        {% for month_year, matches in grouped_matches.items() %}
+            <div class="month-header">Matches of {{ month_year }}</div>
+            {% for match in matches %}
+                <div class="match">
+                    <div class="match-header">
+                        <strong>{{ match.formatted_time }}</strong>
+                        <span class="match-score">Winner: {{ match.result if match.result else "N/A" }}</span>
+                    </div>
+                    <div class="match-players">
+                        <div>{{ match.player1 }}</div>
+                        <div>vs</div>
+                        <div>{{ match.player2 }}</div>
+                    </div>
+                    <div>Sets: {{ match.sets }}</div>
+                    <div class="comment">Comment: {{ match.comment or "None" }}</div>
+                </div>
+            {% endfor %}
         {% endfor %}
-    </ul>
+    </div>
 </body>
 </html>

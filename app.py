@@ -34,11 +34,12 @@ class Player:
 
 
 class Match:
-    def __init__(self, player1, player2, result, sets, comment="None"):
+    def __init__(self, player1, player2, result, sets, time, comment="None"):
         self.player1 = player1
         self.player2 = player2
         self.result = result
         self.sets = sets
+        self.time = time
         self.comment = comment  # Add comment attribute
 
     def __str__(self):
@@ -50,6 +51,7 @@ class Match:
             "player2": self.player2.name,
             "result": self.result,
             "sets": self.sets,
+            "time": self.time,
             "comment": self.comment  # Include comment in dict
         }
 
@@ -63,10 +65,10 @@ class Ladder:
     def add_player(self, player):
         self.players.append(player)
 
-    def record_match(self, player1, player2, winner, sets, comment):
+    def record_match(self, player1, player2, winner, sets, time, comment):
         if not comment:
             comment = 'None'
-        match = Match(player1, player2, winner, sets, comment)
+        match = Match(player1, player2, winner, sets, time, comment)
         self.matches.append(match)
 
         # Update rankings
@@ -110,7 +112,7 @@ def save_to_google_sheets():
     # Convert matches to a list of lists (each match to a row of data)
     matches_data = [['Player 1', 'Player 2', 'Winner', 'Sets', 'Time', 'Comment']] + [
         [m.player1.name, m.player2.name, m.result.name if isinstance(m.result, Player) else m.result,
-         str(m.sets), datetime.now().strftime('%Y-%m-%d %H:%M:%S'), m.comment]
+         str(m.sets), str(m.time), m.comment]
         for m in ladder.matches
     ]
 
@@ -149,8 +151,9 @@ def load_from_google_sheets():
         player2 = next(p for p in ladder.players if p.name == row[1])
         winner = row[2]
         sets = row[3]  # Convert the string of sets to a list of tuples
+        time = row[4]
         comment = row[5]  # Get comment from the row
-        match = Match(player1, player2, winner, sets, comment)
+        match = Match(player1, player2, winner, sets, time, comment)
         ladder.matches.append(match)
         
 
@@ -173,7 +176,29 @@ def ranking():
 def matches():
     load_from_google_sheets()
     matches = ladder.get_matches()
-    return render_template('matches.html', matches=matches)
+
+    # Convert time string to datetime object and format the date in Python
+    for match in matches:
+        match.time_obj = datetime.strptime(match.time, '%Y-%m-%d %H:%M:%S')  # Parse the datetime object
+        match.formatted_time = match.time_obj.strftime('%Y-%m-%d')  # Create a formatted date string
+
+    # Sort matches by time (most recent first)
+    matches.sort(key=lambda x: x.time_obj, reverse=True)
+
+    # Group matches by month and year
+    grouped_matches = {}
+    for match in matches:
+        print(match.result)
+        # Create a key based on month and year
+
+        match_month_year = match.time_obj.strftime('%B %Y')
+        if match_month_year not in grouped_matches:
+            grouped_matches[match_month_year] = []
+        grouped_matches[match_month_year].append(match)
+
+    return render_template('matches.html', grouped_matches=grouped_matches)
+
+
 
 
 @app.route('/add_match', methods=['GET', 'POST'])
@@ -198,12 +223,14 @@ def add_match():
             error_message = f"{player1.name} y {player2.name} están separados por más de {ladder.min_rank_difference} rangos."
             return render_template('add_match.html', players=ladder.players, error=error_message)
 
+        match_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
         # Si no hay error, proceder a registrar el partido
         try:
             if winner == 'player1':
-                ladder.record_match(player1, player2, player1, sets, comment)
+                ladder.record_match(player1, player2, player1, sets, match_time, comment)
             else:
-                ladder.record_match(player1, player2, player2, sets, comment)
+                ladder.record_match(player1, player2, player2, sets, match_time, comment)
 
             save_to_google_sheets()  # Guardar cambios en Google Sheets
             return redirect(url_for('index'))
