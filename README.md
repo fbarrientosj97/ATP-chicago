@@ -33,3 +33,15 @@ The application will run on `http://localhost:5000/`.
 
 - Hay que correr el siguiente código para que funcione de no subir variables de entorno:
 - export GOOGLE_APPLICATION_CREDENTIALS_JSON=$(cat credentials.json | jq -c)     
+
+## Error handling
+
+- In case of an error with the virtual environment: 
+   1. Remove the Existing venv Completely:
+Make sure you’re not just “recreating” over an existing folder. Deactivate your virtual environment (if it’s active) and then delete the entire venv folder: 
+      - deactivate  # if you are in the virtual environment
+      - rm -rf venv
+
+   2.	Create a New Virtual Environment: Create a new virtual environment in a clean folder:
+
+      - python3 -m venv venv
